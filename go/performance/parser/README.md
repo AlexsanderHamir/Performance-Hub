@@ -58,8 +58,8 @@ From the repo’s `go/` directory:
 
 ```bash
 cd go
-go test ./performance/parser/ -coverprofile=cover.out -covermode=atomic
-go tool cover -func cover.out
+go test ./performance/parser/ -coverprofile=cover -covermode=atomic
+go tool cover -func cover
 ```
 
 Use a **space** before the profile path (`-func cover.out`), not `=`, so PowerShell doesn’t pass it as one argument. For an HTML report: `go tool cover -html cover.out`.

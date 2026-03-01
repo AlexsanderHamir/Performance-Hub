@@ -137,6 +137,8 @@ func (cg *CallGraph) TotalFrom(caller string) int64 {
 }
 
 // treeBranch returns the branch character and prefix for the next line (├ └ │).
+//
+//go:noinline
 func treeBranch(last bool, prefix string) (branch, nextPrefix string) {
 	if last {
 		return "└─ ", prefix + "    "

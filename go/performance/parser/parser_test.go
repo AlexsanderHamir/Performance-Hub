@@ -13,8 +13,8 @@ import (
 // minimalProfile returns a valid *profile.Profile with one sample and a caller->callee stack.
 // Used to test DigestProfile and related behavior without filesystem.
 func minimalProfile(callerName, calleeName string, sampleValue int64) *profile.Profile {
-	fnCaller := &profile.Function{ID: 1, Name: callerName}
-	fnCallee := &profile.Function{ID: 2, Name: calleeName}
+	fnCaller := &profile.Function{ID: 1, Name: callerName, Filename: "caller.go"}
+	fnCallee := &profile.Function{ID: 2, Name: calleeName, Filename: "callee.go"}
 	locCaller := &profile.Location{ID: 1, Line: []profile.Line{{Function: fnCaller}}}
 	locCallee := &profile.Location{ID: 2, Line: []profile.Line{{Function: fnCallee}}}
 	return &profile.Profile{
@@ -64,9 +64,28 @@ func TestParseProfile(t *testing.T) {
 			t.Error("expected at least one sample")
 		}
 	})
+
+	t.Run("returns error when file exists but content is invalid", func(t *testing.T) {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "bad.prof")
+		if err := os.WriteFile(path, []byte("not a profile"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		_, err := ParseProfile(path)
+		if err == nil {
+			t.Fatal("expected error for invalid profile content")
+		}
+	})
 }
 
 func TestParseProfileFromReader(t *testing.T) {
+	t.Run("returns error when reader contains invalid data", func(t *testing.T) {
+		_, err := ParseProfileFromReader(bytes.NewReader([]byte("not a profile")))
+		if err == nil {
+			t.Fatal("expected error for invalid profile data")
+		}
+	})
+
 	t.Run("returns profile when reader contains valid profile", func(t *testing.T) {
 		p := minimalProfile("caller", "callee", 100)
 		var buf bytes.Buffer
@@ -348,6 +367,15 @@ func TestPrintDigest(t *testing.T) {
 		}
 	})
 
+	t.Run("writes call graph with focused header when focus matches", func(t *testing.T) {
+		d, _ := DigestProfile(minimalProfile("caller", "callee", 10))
+		var buf bytes.Buffer
+		PrintDigest(d, "caller", &buf)
+		if !strings.Contains(buf.String(), "Call graph (tree, focused on \"caller\")") {
+			t.Error("output should contain focused call graph header when focus matches")
+		}
+	})
+
 	t.Run("writes no function matching when focus matches nothing", func(t *testing.T) {
 		d, _ := DigestProfile(minimalProfile("caller", "callee", 10))
 		var buf bytes.Buffer
@@ -379,6 +407,17 @@ func TestPrintCallTree(t *testing.T) {
 		}
 		if !strings.Contains(out, "child") {
 			t.Error("output should contain callee name")
+		}
+	})
+
+	t.Run("uses treeBranch for last and non-last sibling", func(t *testing.T) {
+		branch, next := treeBranch(true, "  ")
+		if branch != "└─ " || next != "      " {
+			t.Errorf("treeBranch(true): got %q, %q", branch, next)
+		}
+		branch, next = treeBranch(false, "  ")
+		if branch != "├─ " || !strings.HasSuffix(next, "│   ") {
+			t.Errorf("treeBranch(false): got %q, %q", branch, next)
 		}
 	})
 

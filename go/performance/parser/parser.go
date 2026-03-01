@@ -17,7 +17,11 @@ func ParseProfile(path string) (*profile.Profile, error) {
 		return nil, err
 	}
 	defer f.Close()
-	return ParseProfileFromReader(f)
+	p, err := ParseProfileFromReader(f)
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
 }
 
 // ParseProfileFromReader parses a pprof profile from r. Used by ParseProfile and by tests with in-memory data.
