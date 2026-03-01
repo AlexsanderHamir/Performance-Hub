@@ -19,8 +19,9 @@ func ParseProfile(path string) (*profile.Profile, error) {
 	return profile.Parse(f)
 }
 
-// Summary holds analytical data derived from a pprof Profile.
-type Summary struct {
+// Digest is the result of parsing a pprof profile into a digestible structure:
+// the same analytical data from the profile, organized for step-by-step use.
+type Digest struct {
 	Profile *profile.Profile
 
 	// Sample types (e.g. "samples", "cpu")
@@ -46,20 +47,21 @@ type FuncStat struct {
 	Value      int64 // total samples attributed to this function
 }
 
-// Summarize builds analytical data from a parsed profile using pprof's data.
-func Summarize(p *profile.Profile) (*Summary, error) {
+// DigestProfile parses a pprof Profile into a Digest: the profile's analytical data
+// in a structured form you can walk step by step (sample types, functions, etc.).
+func DigestProfile(p *profile.Profile) (*Digest, error) {
 	if err := p.CheckValid(); err != nil {
 		return nil, err
 	}
 
-	s := &Summary{Profile: p}
+	d := &Digest{Profile: p}
 	for _, st := range p.SampleType {
-		s.SampleTypes = append(s.SampleTypes, st.Type+"/"+st.Unit)
+		d.SampleTypes = append(d.SampleTypes, st.Type+"/"+st.Unit)
 	}
-	s.DurationNanos = p.DurationNanos
-	s.Period = p.Period
+	d.DurationNanos = p.DurationNanos
+	d.Period = p.Period
 	if p.PeriodType != nil {
-		s.PeriodType = p.PeriodType.Type + "/" + p.PeriodType.Unit
+		d.PeriodType = p.PeriodType.Type + "/" + p.PeriodType.Unit
 	}
 
 	// Aggregate value per location, then per function (pprof uses Location → Line → Function).
@@ -72,7 +74,7 @@ func Summarize(p *profile.Profile) (*Summary, error) {
 		for _, loc := range sample.Location {
 			locValue[loc] += v
 		}
-		s.TotalSamples += v
+		d.TotalSamples += v
 	}
 
 	funcValue := make(map[uint64]int64)
@@ -89,24 +91,24 @@ func Summarize(p *profile.Profile) (*Summary, error) {
 		if v == 0 {
 			continue
 		}
-		s.TopFunctions = append(s.TopFunctions, FuncStat{
+		d.TopFunctions = append(d.TopFunctions, FuncStat{
 			Name:       fn.Name,
 			SystemName: fn.SystemName,
 			Filename:   fn.Filename,
 			Value:      v,
 		})
 	}
-	sort.Slice(s.TopFunctions, func(i, j int) bool {
-		return s.TopFunctions[i].Value > s.TopFunctions[j].Value
+	sort.Slice(d.TopFunctions, func(i, j int) bool {
+		return d.TopFunctions[i].Value > d.TopFunctions[j].Value
 	})
-	return s, nil
+	return d, nil
 }
 
 const nanosPerSecond = 1e9
 
 // isTimeProfile returns true if the profile's sample values are in nanoseconds (e.g. cpu/nanoseconds).
-func isTimeProfile(s *Summary) bool {
-	for _, st := range s.SampleTypes {
+func isTimeProfile(d *Digest) bool {
+	for _, st := range d.SampleTypes {
 		if st == "cpu/nanoseconds" {
 			return true
 		}
@@ -114,20 +116,20 @@ func isTimeProfile(s *Summary) bool {
 	return false
 }
 
-// PrintSummary writes a human-readable summary of the profile to stdout.
+// PrintDigest writes the parsed digest to stdout (step-by-step view of the results).
 // Time values are shown in seconds to match pprof's usual display.
-func PrintSummary(s *Summary) {
-	fmt.Println("--- Profile summary (via pprof profile package) ---")
-	fmt.Println("Sample types:", s.SampleTypes)
-	fmt.Println("Total samples:", s.TotalSamples)
-	fmt.Printf("Duration: %.4gs\n", float64(s.DurationNanos)/nanosPerSecond)
-	periodSec := float64(s.Period) / nanosPerSecond
-	fmt.Printf("Period: %s %.4g\n", s.PeriodType, periodSec)
+func PrintDigest(d *Digest) {
+	fmt.Println("--- Parsed profile (digest) ---")
+	fmt.Println("Sample types:", d.SampleTypes)
+	fmt.Println("Total samples:", d.TotalSamples)
+	fmt.Printf("Duration: %.4gs\n", float64(d.DurationNanos)/nanosPerSecond)
+	periodSec := float64(d.Period) / nanosPerSecond
+	fmt.Printf("Period: %s %.4g\n", d.PeriodType, periodSec)
 	fmt.Println()
 
-	showValueSec := isTimeProfile(s)
+	showValueSec := isTimeProfile(d)
 	fmt.Println("Top functions by sample value:")
-	for i, f := range s.TopFunctions {
+	for i, f := range d.TopFunctions {
 		if i >= 15 {
 			break
 		}

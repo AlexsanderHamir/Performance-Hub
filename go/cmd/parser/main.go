@@ -23,11 +23,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	s, err := parser.Summarize(p)
+	d, err := parser.DigestProfile(p)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
-	parser.PrintSummary(s)
+	parser.PrintDigest(d)
 }

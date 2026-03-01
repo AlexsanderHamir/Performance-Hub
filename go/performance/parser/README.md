@@ -13,7 +13,7 @@ go test -cpuprofile=cpu.prof -bench=. ./performance/parser/
 
 This runs the small benchmarks in this package and writes `cpu.prof` in the current directory.
 
-## 2. Parse and print summary
+## 2. Parse and view results
 
 Using the CLI:
 
@@ -36,9 +36,9 @@ import "github.com/AlexsanderHamir/Performance-Hub/go/performance/parser"
 p, err := parser.ParseProfile("cpu.prof")
 if err != nil { ... }
 
-// Use pprof’s *profile.Profile (Sample, Location, Function, SampleType, etc.)
-summary, err := parser.Summarize(p)
-parser.PrintSummary(summary)
+// DigestProfile parses the profile into a step-by-step structure (sample types, functions, etc.)
+digest, err := parser.DigestProfile(p)
+parser.PrintDigest(digest)
 ```
 
 All analytical data comes from the official `profile` types (e.g. `Profile.Function`, `Profile.Sample`, `Location`, `ValueType`).
