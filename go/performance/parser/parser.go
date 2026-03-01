@@ -33,6 +33,10 @@ type Digest struct {
 	// Functions sorted by total value (e.g. CPU time), descending
 	TopFunctions []FuncStat
 
+	// Call graph: who called whom and how much value flowed (caller → callee).
+	// Sorted by Value descending so hottest edges first.
+	Edges []CallEdge
+
 	// Duration and period from the profile
 	DurationNanos int64
 	Period        int64
@@ -47,8 +51,26 @@ type FuncStat struct {
 	Value      int64 // total samples attributed to this function
 }
 
+// CallEdge represents a caller→callee relationship and how much value (e.g. CPU time)
+// flowed along that edge. Same as pprof's call graph: "Caller called Callee" for Value.
+type CallEdge struct {
+	Caller string
+	Callee string
+	Value  int64
+}
+
+// functionName returns the primary function name for a location (first Line's Function).
+func functionName(loc *profile.Location) string {
+	for _, line := range loc.Line {
+		if line.Function != nil {
+			return line.Function.Name
+		}
+	}
+	return ""
+}
+
 // DigestProfile parses a pprof Profile into a Digest: the profile's analytical data
-// in a structured form you can walk step by step (sample types, functions, etc.).
+// in a structured form you can walk step by step (sample types, functions, call graph, etc.).
 func DigestProfile(p *profile.Profile) (*Digest, error) {
 	if err := p.CheckValid(); err != nil {
 		return nil, err
@@ -76,6 +98,41 @@ func DigestProfile(p *profile.Profile) (*Digest, error) {
 		}
 		d.TotalSamples += v
 	}
+
+	// Build call graph: for each sample stack, caller = Location[i+1], callee = Location[i].
+	edgeValue := make(map[string]int64)
+	for _, sample := range p.Sample {
+		var v int64
+		for _, val := range sample.Value {
+			v += val
+		}
+		locs := sample.Location
+		for i := 0; i < len(locs)-1; i++ {
+			callee := functionName(locs[i])
+			caller := functionName(locs[i+1])
+			if caller != "" && callee != "" {
+				key := caller + "\n" + callee
+				edgeValue[key] += v
+			}
+		}
+	}
+
+	for key, val := range edgeValue {
+		// key is "caller\ncallee"
+		i := 0
+		for j := range key {
+			if key[j] == '\n' {
+				i = j
+				break
+			}
+		}
+		caller := key[:i]
+		callee := key[i+1:]
+		d.Edges = append(d.Edges, CallEdge{Caller: caller, Callee: callee, Value: val})
+	}
+	sort.Slice(d.Edges, func(i, j int) bool {
+		return d.Edges[i].Value > d.Edges[j].Value
+	})
 
 	funcValue := make(map[uint64]int64)
 	for loc, v := range locValue {
@@ -141,5 +198,72 @@ func PrintDigest(d *Digest) {
 		if f.Filename != "" {
 			fmt.Printf("       \t%s\n", f.Filename)
 		}
+	}
+
+	if len(d.Edges) > 0 {
+		fmt.Println()
+		fmt.Println("Call graph (tree):")
+		printCallTree(d, showValueSec)
+	}
+}
+
+// printCallTree prints the call graph as a tree with branch characters (├ └ │).
+// Roots = functions that are never callees; from each root we recurse into callees.
+func printCallTree(d *Digest, showValueSec bool) {
+	byCaller := make(map[string][]CallEdge)
+	callerTotal := make(map[string]int64)
+	callees := make(map[string]bool)
+	for _, e := range d.Edges {
+		byCaller[e.Caller] = append(byCaller[e.Caller], e)
+		callerTotal[e.Caller] += e.Value
+		callees[e.Callee] = true
+	}
+	var roots []string
+	for c := range byCaller {
+		if !callees[c] {
+			roots = append(roots, c)
+		}
+	}
+	sort.Slice(roots, func(i, j int) bool {
+		return callerTotal[roots[i]] > callerTotal[roots[j]]
+	})
+	visited := make(map[string]bool)
+	for _, root := range roots {
+		fmt.Printf("  %s\n", root)
+		printCallNode(d, byCaller, showValueSec, root, "", true, visited)
+	}
+}
+
+func printCallNode(d *Digest, byCaller map[string][]CallEdge, showValueSec bool, name string, prefix string, isLast bool, visited map[string]bool) {
+	edges := byCaller[name]
+	if len(edges) == 0 {
+		return
+	}
+	sort.Slice(edges, func(i, j int) bool { return edges[i].Value > edges[j].Value })
+	for i, e := range edges {
+		pct := 100 * float64(e.Value) / float64(d.TotalSamples)
+		last := i == len(edges)-1
+		var branch, nextPrefix string
+		if last {
+			branch = "└─ "
+			nextPrefix = prefix + "    "
+		} else {
+			branch = "├─ "
+			nextPrefix = prefix + "│   "
+		}
+		valStr := ""
+		if showValueSec {
+			valStr = fmt.Sprintf("  (%.4gs)", float64(e.Value)/nanosPerSecond)
+		} else {
+			valStr = fmt.Sprintf("  (%d)", e.Value)
+		}
+		fmt.Printf("%s%s%.2f%%  %s%s\n", prefix, branch, pct, e.Callee, valStr)
+		if visited[e.Callee] {
+			fmt.Printf("%s    (cycle)\n", nextPrefix)
+			continue
+		}
+		visited[e.Callee] = true
+		printCallNode(d, byCaller, showValueSec, e.Callee, nextPrefix, last, visited)
+		visited[e.Callee] = false
 	}
 }
