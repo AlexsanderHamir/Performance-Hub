@@ -21,11 +21,18 @@ Using the CLI:
 go run ./cmd/parser/ cpu.prof
 ```
 
+Isolate the call tree to a specific function (substring match):
+
+```bash
+go run ./cmd/parser/ -focus parser.work cpu.prof
+```
+
 Or build and run:
 
 ```bash
 go build -o parser ./cmd/parser/
 ./parser cpu.prof
+./parser -focus "sha256.Write" cpu.prof
 ```
 
 ## 3. Use the parser in code
@@ -38,7 +45,9 @@ if err != nil { ... }
 
 // DigestProfile parses the profile into a step-by-step structure (sample types, functions, etc.)
 digest, err := parser.DigestProfile(p)
-parser.PrintDigest(digest)
+parser.PrintDigest(digest, "", nil)            // full call tree to stdout
+parser.PrintDigest(digest, "parser.work", nil) // call tree focused on "parser.work"
+parser.PrintDigest(digest, "", myWriter)       // or inject your own io.Writer
 ```
 
 All analytical data comes from the official `profile` types (e.g. `Profile.Function`, `Profile.Sample`, `Location`, `ValueType`).

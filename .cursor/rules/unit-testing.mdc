@@ -1,0 +1,41 @@
+---
+name: unit-testing
+description: Write fast, accurate unit tests — full coverage, no dead code, no skipped cases, no code smells
+---
+
+# Unit Testing
+
+## Core Principles
+- Test behavior, not implementation. If a refactor breaks tests without changing behavior, the tests are wrong.
+- One assertion focus per test — a test can have multiple `expect` calls if they validate one behavior.
+- Every test must fail for the right reason before it passes.
+- Never leave `skip`, `todo`, or commented-out tests — delete or finish them.
+
+## Structure
+- Arrange / Act / Assert — always in that order, always readable at a glance.
+- Name tests as full sentences: `returns null when user is not found`, not `test1` or `works`.
+- Group by unit under `describe`, one `describe` block per function or class.
+```ts
+describe('getUserById', () => {
+  it('returns the user when found', () => { ... })
+  it('returns null when user does not exist', () => { ... })
+  it('throws when id is invalid', () => { ... })
+})
+```
+
+## Coverage
+- Cover the happy path, edge cases, and failure modes — in that order.
+- If a bug is fixed, a test for that exact case is required.
+- No untested exports. If it's exported, it's tested.
+
+## Speed & Isolation
+- Unit tests must not touch the network, filesystem, or database — mock or stub them.
+- No shared mutable state between tests. Each test sets up its own data.
+- Tests should run in milliseconds — if a test is slow, it's not a unit test.
+
+## Code Smells to Eliminate
+- Mocking internals or private methods — test the public interface only.
+- Tests that only pass in a specific order — full isolation required.
+- Assertions on exact irrelevant values (e.g. UUIDs, timestamps) — use matchers like `expect.any(String)`.
+- Copy-pasted setup — extract to `beforeEach` or a factory helper.
+- Testing framework internals or third-party libraries — only test your code.

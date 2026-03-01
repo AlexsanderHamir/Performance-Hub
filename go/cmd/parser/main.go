@@ -3,6 +3,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
@@ -10,12 +11,18 @@ import (
 )
 
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Fprintf(os.Stderr, "usage: %s <cpu.prof>\n", os.Args[0])
-		fmt.Fprintln(os.Stderr, "Generate a profile first: cd go && go test -cpuprofile=cpu.prof -bench=. ./performance/parser/")
+	focus := flag.String("focus", "", "isolate call tree to functions whose name contains this (e.g. parser.work)")
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "usage: %s [options] <cpu.prof>\n", os.Args[0])
+		flag.PrintDefaults()
+		fmt.Fprintln(os.Stderr, "\nGenerate a profile: cd go && go test -cpuprofile=cpu.prof -bench=. ./performance/parser/")
+	}
+	flag.Parse()
+	if flag.NArg() < 1 {
+		flag.Usage()
 		os.Exit(1)
 	}
-	path := os.Args[1]
+	path := flag.Arg(0)
 
 	p, err := parser.ParseProfile(path)
 	if err != nil {
@@ -29,5 +36,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	parser.PrintDigest(d)
+	parser.PrintDigest(d, *focus, nil)
 }
