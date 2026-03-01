@@ -22,6 +22,7 @@ how-to-document.mdc             ← how to write markdown docs
 break-down-implementation.mdc   ← how to plan and commit
 validate-input-and-output.mdc   ← how to confirm data at runtime
 error-handling.mdc              ← how to handle, wrap, and propagate errors
+logging.mdc                     ← how to log with structure and context
 golang.mdc                      ← language-specific standards
 ```
 
@@ -44,6 +45,7 @@ Do not summarize or skip rules. Each one has a stopping condition — meet it be
 ### 3. Implement
 - Write code in small, composable units. (`composability`)
 - Handle every error explicitly — wrap with context, propagate to the correct layer. (`error-handling`)
+- Log at the handling boundary only — structured, with mandatory context fields. (`logging`)
 - No comments that restate what the code does. (`how-to-use-comments`)
 - Follow language-specific standards throughout. (`golang`)
 - Commit each logical unit before moving to the next. (`break-down-implementation`)
@@ -65,10 +67,12 @@ Do not summarize or skip rules. Each one has a stopping condition — meet it be
 - All commits are atomic with messages that describe the change without reading the diff.
 - No debug code, commented-out code, or TODOs without a ticket.
 - No swallowed errors, no bare returns, no panics in business logic. (`error-handling`)
+- No `fmt.Println`, no unstructured logs, no sensitive data logged. (`logging`)
 
 ## Rules That Always Apply
 - Never assume data shape — confirm it at runtime. (`validate-input-and-output`)
 - Never swallow, ignore, or panic on an error — handle or propagate it. (`error-handling`)
+- Never log at the origin — log at the handling boundary with full context. (`logging`)
 - Never leave a task half-done. If you are blocked, say so explicitly.
 - Never make a large change in one commit. (`break-down-implementation`)
 - Never skip tests because the logic seems simple. (`unit-testing`)
@@ -76,6 +80,7 @@ Do not summarize or skip rules. Each one has a stopping condition — meet it be
 ## Done Means
 - [ ] Implementation is complete and composable.
 - [ ] Every error is handled, wrapped with context, and tested.
+- [ ] Logs are structured, contextual, and at the correct layer.
 - [ ] Tests pass with 100% coverage including error paths.
 - [ ] Documentation is written and accurate.
 - [ ] Commits are atomic with clean messages.
