@@ -165,6 +165,66 @@ func TestDigestProfile(t *testing.T) {
 			t.Errorf("PeriodType: got %q, want empty", d.PeriodType)
 		}
 	})
+
+	t.Run("sorts multiple edges by value descending", func(t *testing.T) {
+		// Profile with 3 locations (root -> mid -> leaf) gives 2 edges so sort.Slice callback runs.
+		fnRoot := &profile.Function{ID: 1, Name: "root", Filename: "r.go"}
+		fnMid := &profile.Function{ID: 2, Name: "mid", Filename: "m.go"}
+		fnLeaf := &profile.Function{ID: 3, Name: "leaf", Filename: "l.go"}
+		locRoot := &profile.Location{ID: 1, Line: []profile.Line{{Function: fnRoot}}}
+		locMid := &profile.Location{ID: 2, Line: []profile.Line{{Function: fnMid}}}
+		locLeaf := &profile.Location{ID: 3, Line: []profile.Line{{Function: fnLeaf}}}
+		p := &profile.Profile{
+			SampleType:    []*profile.ValueType{{Type: "cpu", Unit: "nanoseconds"}},
+			PeriodType:    &profile.ValueType{Type: "cpu", Unit: "nanoseconds"},
+			Period:        10000000,
+			DurationNanos: 1e9,
+			TimeNanos:     0,
+			Function:      []*profile.Function{fnRoot, fnMid, fnLeaf},
+			Location:      []*profile.Location{locRoot, locMid, locLeaf},
+			Sample: []*profile.Sample{
+				{Location: []*profile.Location{locLeaf, locMid, locRoot}, Value: []int64{10}},
+			},
+		}
+		d, err := DigestProfile(p)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(d.Edges) != 2 {
+			t.Fatalf("expected 2 edges, got %d", len(d.Edges))
+		}
+		if d.Edges[0].Value < d.Edges[1].Value {
+			t.Errorf("edges should be sorted descending by value, got %d then %d", d.Edges[0].Value, d.Edges[1].Value)
+		}
+	})
+
+	t.Run("excludes functions with zero sample value from top functions", func(t *testing.T) {
+		// Profile with an extra function in p.Function that is never referenced in any location
+		// so aggregateTopFunctions hits the v==0 continue branch.
+		fnA := &profile.Function{ID: 1, Name: "used", Filename: "a.go"}
+		fnB := &profile.Function{ID: 2, Name: "unusedInSamples", Filename: "b.go"}
+		locA := &profile.Location{ID: 1, Line: []profile.Line{{Function: fnA}}}
+		p := &profile.Profile{
+			SampleType:    []*profile.ValueType{{Type: "cpu", Unit: "nanoseconds"}},
+			PeriodType:    &profile.ValueType{Type: "cpu", Unit: "nanoseconds"},
+			Period:        10000000,
+			DurationNanos: 1e9,
+			TimeNanos:     0,
+			Function:      []*profile.Function{fnA, fnB},
+			Location:      []*profile.Location{locA},
+			Sample:        []*profile.Sample{{Location: []*profile.Location{locA}, Value: []int64{50}}},
+		}
+		d, err := DigestProfile(p)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(d.TopFunctions) != 1 {
+			t.Fatalf("expected 1 top function (unusedInSamples must be skipped), got %d", len(d.TopFunctions))
+		}
+		if d.TopFunctions[0].Name != "used" || d.TopFunctions[0].Value != 50 {
+			t.Errorf("top function: got Name=%q Value=%d, want Name=used Value=50", d.TopFunctions[0].Name, d.TopFunctions[0].Value)
+		}
+	})
 }
 
 func TestSplitEdgeKey(t *testing.T) {
