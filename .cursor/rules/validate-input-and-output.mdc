@@ -1,8 +1,6 @@
 ---
-name: validate-input-and-output
-description: Never assume what data looks like — run it, print it, confirm it before building on top of it
+alwaysApply: false
 ---
-
 # Validate Input & Output
 
 ## The Rule
