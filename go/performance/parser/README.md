@@ -43,7 +43,6 @@ import "github.com/AlexsanderHamir/Performance-Hub/go/performance/parser"
 p, err := parser.ParseProfile("cpu.prof")
 if err != nil { ... }
 
-// DigestProfile parses the profile into a step-by-step structure (sample types, functions, etc.)
 digest, err := parser.DigestProfile(p)
 parser.PrintDigest(digest, "", nil)            // full call tree to stdout
 parser.PrintDigest(digest, "parser.work", nil) // call tree focused on "parser.work"

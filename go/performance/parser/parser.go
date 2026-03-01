@@ -9,8 +9,6 @@ import (
 	"github.com/google/pprof/profile"
 )
 
-// ParseProfile reads a pprof profile file (e.g. from -cpuprofile) and returns
-// the parsed Profile. Use pprof's own types for all analytical data.
 func ParseProfile(path string) (*profile.Profile, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -24,13 +22,10 @@ func ParseProfile(path string) (*profile.Profile, error) {
 	return p, nil
 }
 
-// ParseProfileFromReader parses a pprof profile from r. Used by ParseProfile and by tests with in-memory data.
 func ParseProfileFromReader(r io.Reader) (*profile.Profile, error) {
 	return profile.Parse(r)
 }
 
-// DigestProfile parses a pprof Profile into a Digest. Composes small pure helpers
-// for metadata, location aggregation, call edges, and function stats.
 func DigestProfile(p *profile.Profile) (*Digest, error) {
 	if err := p.CheckValid(); err != nil {
 		return nil, err
@@ -130,8 +125,7 @@ func aggregateTopFunctions(p *profile.Profile, locValue map[*profile.Location]in
 
 const defaultTopFunctionsLimit = 15
 
-// PrintDigest writes the parsed digest to w (step-by-step view). Pass nil for w to use os.Stdout.
-// If focus is non-empty, the call graph is limited to functions whose name contains focus.
+// PrintDigest: pass nil for w to use os.Stdout; non-empty focus limits the call graph to functions whose name contains focus.
 func PrintDigest(d *Digest, focus string, w io.Writer) {
 	if w == nil {
 		w = os.Stdout

@@ -10,8 +10,6 @@ import (
 	"github.com/google/pprof/profile"
 )
 
-// minimalProfile returns a valid *profile.Profile with one sample and a caller->callee stack.
-// Used to test DigestProfile and related behavior without filesystem.
 func minimalProfile(callerName, calleeName string, sampleValue int64) *profile.Profile {
 	fnCaller := &profile.Function{ID: 1, Name: callerName, Filename: "caller.go"}
 	fnCallee := &profile.Function{ID: 2, Name: calleeName, Filename: "callee.go"}
@@ -26,7 +24,7 @@ func minimalProfile(callerName, calleeName string, sampleValue int64) *profile.P
 		Function:      []*profile.Function{fnCaller, fnCallee},
 		Location:      []*profile.Location{locCaller, locCallee},
 		Sample: []*profile.Sample{{
-			Location: []*profile.Location{locCallee, locCaller}, // callee at 0, caller at 1 (stack)
+			Location: []*profile.Location{locCallee, locCaller},
 			Value:    []int64{sampleValue},
 		}},
 	}
@@ -167,7 +165,7 @@ func TestDigestProfile(t *testing.T) {
 	})
 
 	t.Run("sorts multiple edges by value descending", func(t *testing.T) {
-		// Profile with 3 locations (root -> mid -> leaf) gives 2 edges so sort.Slice callback runs.
+		// 3 locations (root→mid→leaf) yield 2 edges so DigestProfile's sort.Slice callback is exercised.
 		fnRoot := &profile.Function{ID: 1, Name: "root", Filename: "r.go"}
 		fnMid := &profile.Function{ID: 2, Name: "mid", Filename: "m.go"}
 		fnLeaf := &profile.Function{ID: 3, Name: "leaf", Filename: "l.go"}
@@ -199,8 +197,7 @@ func TestDigestProfile(t *testing.T) {
 	})
 
 	t.Run("excludes functions with zero sample value from top functions", func(t *testing.T) {
-		// Profile with an extra function in p.Function that is never referenced in any location
-		// so aggregateTopFunctions hits the v==0 continue branch.
+		// Extra function in p.Function with no samples so aggregateTopFunctions' v==0 continue is covered.
 		fnA := &profile.Function{ID: 1, Name: "used", Filename: "a.go"}
 		fnB := &profile.Function{ID: 2, Name: "unusedInSamples", Filename: "b.go"}
 		locA := &profile.Location{ID: 1, Line: []profile.Line{{Function: fnA}}}
