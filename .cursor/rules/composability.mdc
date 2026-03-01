@@ -1,8 +1,6 @@
 ---
-name: composability
-description: Enforce composable architecture — single-responsibility functions, small helpers, and modular file organization
+alwaysApply: false
 ---
-
 # Composability
 
 ## Functions

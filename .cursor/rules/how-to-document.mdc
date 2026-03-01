@@ -1,0 +1,92 @@
+---
+alwaysApply: false
+---
+# Code Documentation
+
+## The Rule
+Every package and significant file gets a markdown doc. Documentation is written alongside code, not after.
+If the code ships without a doc, the task is not done.
+
+## Required Docs Per Layer
+
+### Package / Main Entry Point — `README.md`
+Every package needs a `README.md` that covers:
+- **What it does** — one sentence, no jargon.
+- **Why it exists** — the problem it solves, not how it solves it.
+- **How to use it** — minimal working example, copy-pasteable.
+- **Configuration** — every env var, flag, or config option with type and default.
+- **Dependencies** — what it relies on externally.
+```
+/user
+  README.md       ← required
+  userService.go
+  userHelpers.go
+  userTypes.go
+```
+
+### Helpers File — `HELPERS.md` or inline section in `README.md`
+- List every exported helper, one line each: name, input, output, purpose.
+- Group by concern, not alphabetically.
+- If a helper has a non-obvious behavior or edge case, call it out explicitly.
+```md
+## Helpers
+
+### `FormatUserDisplayName(first, last string) string`
+Joins first and last name, trims whitespace. Returns "Anonymous" if both are empty.
+
+### `ValidateEmail(email string) error`
+Checks format only — does not verify deliverability.
+```
+
+### API / Interface Layer — `API.md`
+- Every endpoint or public method: method, path/signature, request, response, errors.
+- Include a real example request and response — no placeholder data.
+- Document every non-200 response and when it occurs.
+
+### Architecture Decisions — `DECISIONS.md`
+- Record any non-obvious technical choice with: context, options considered, decision made, tradeoffs accepted.
+- Written once, updated when the decision changes.
+- Prevents the same debate from happening twice.
+
+## Writing Rules
+- **First sentence is a standalone summary** — someone skimming only reads that.
+- **Show, don't tell** — a code example beats three paragraphs of explanation.
+- **Document the why, not the what** — the code shows what, the doc explains why.
+- **Concrete over abstract** — real values, real types, real errors. Never `<your value here>`.
+- **If it can fail, document how** — every error, edge case, and constraint.
+- **No filler** — remove "basically", "simply", "easy to use", and marketing language.
+
+## Documentation Coverage Checklist
+Before marking any task complete, verify:
+- [ ] Package has a `README.md` with usage example.
+- [ ] Every exported helper is listed with signature and behavior.
+- [ ] Every API endpoint is documented with request, response, and errors.
+- [ ] Any non-obvious decision has an entry in `DECISIONS.md`.
+- [ ] All examples use real, runnable values — not placeholders.
+- [ ] No exported symbol is undocumented.
+
+## Structure Template — README.md
+```md
+# <Package Name>
+
+<One sentence: what this package does and why it exists.>
+
+## Usage
+​```go
+// minimal working example
+​```
+
+## Configuration
+| Name | Type | Default | Description |
+|---|---|---|---|
+| `ENV_VAR` | string | `""` | What it controls |
+
+## Helpers
+<list of exported helpers>
+
+## Errors
+<list of known error conditions and causes>
+
+## Decisions
+<link to DECISIONS.md or inline if small>
+```

@@ -1,8 +1,6 @@
 ---
-name: unit-testing
-description: Write fast, accurate unit tests — full coverage, no dead code, no skipped cases, no code smells
+alwaysApply: false
 ---
-
 # Unit Testing
 
 ## Core Principles

@@ -1,8 +1,6 @@
 ---
-name: how-to-use-comments
-description: Minimize comments — write self-documenting code, only comment what code cannot express
+alwaysApply: false
 ---
-
 # Comments
 
 ## Default: Don't Comment
