@@ -2,6 +2,8 @@ package parser
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -35,6 +37,51 @@ func TestParseProfile(t *testing.T) {
 		_, err := ParseProfile("/nonexistent/path/to/cpu.prof")
 		if err == nil {
 			t.Fatal("expected error for nonexistent path")
+		}
+	})
+
+	t.Run("returns profile when file contains valid profile", func(t *testing.T) {
+		p := minimalProfile("caller", "callee", 100)
+		dir := t.TempDir()
+		path := filepath.Join(dir, "cpu.prof")
+		f, err := os.Create(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := p.Write(f); err != nil {
+			f.Close()
+			t.Fatal(err)
+		}
+		f.Close()
+		got, err := ParseProfile(path)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got == nil {
+			t.Fatal("expected non-nil profile")
+		}
+		if len(got.Sample) == 0 {
+			t.Error("expected at least one sample")
+		}
+	})
+}
+
+func TestParseProfileFromReader(t *testing.T) {
+	t.Run("returns profile when reader contains valid profile", func(t *testing.T) {
+		p := minimalProfile("caller", "callee", 100)
+		var buf bytes.Buffer
+		if err := p.Write(&buf); err != nil {
+			t.Fatal(err)
+		}
+		got, err := ParseProfileFromReader(&buf)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got == nil {
+			t.Fatal("expected non-nil profile")
+		}
+		if len(got.Sample) == 0 {
+			t.Error("expected at least one sample")
 		}
 	})
 }
@@ -79,6 +126,41 @@ func TestDigestProfile(t *testing.T) {
 		}
 	})
 
+	t.Run("returns error when profile fails CheckValid", func(t *testing.T) {
+		p := minimalProfile("caller", "callee", 100)
+		p.Sample[0].Value = []int64{1, 2}
+		_, err := DigestProfile(p)
+		if err == nil {
+			t.Fatal("expected error for invalid profile")
+		}
+	})
+
+	t.Run("leaves PeriodType empty when profile PeriodType is nil", func(t *testing.T) {
+		p := minimalProfile("caller", "callee", 100)
+		p.PeriodType = nil
+		d, err := DigestProfile(p)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if d.PeriodType != "" {
+			t.Errorf("PeriodType: got %q, want empty", d.PeriodType)
+		}
+	})
+}
+
+func TestSplitEdgeKey(t *testing.T) {
+	t.Run("returns caller and callee when key contains newline", func(t *testing.T) {
+		caller, callee := splitEdgeKey("a\nb")
+		if caller != "a" || callee != "b" {
+			t.Errorf("got %q, %q; want a, b", caller, callee)
+		}
+	})
+	t.Run("returns empty strings when key has no newline", func(t *testing.T) {
+		caller, callee := splitEdgeKey("noNewline")
+		if caller != "" || callee != "" {
+			t.Errorf("got %q, %q; want empty", caller, callee)
+		}
+	})
 }
 
 func TestFunctionName(t *testing.T) {
@@ -191,6 +273,21 @@ func TestCallGraph_Roots(t *testing.T) {
 			t.Errorf("got %v, want nil", roots)
 		}
 	})
+
+	t.Run("returns multiple roots sorted by value when focus matches several", func(t *testing.T) {
+		edges := []CallEdge{
+			{Caller: "foox", Callee: "foo", Value: 5},
+			{Caller: "fooy", Callee: "foo", Value: 10},
+		}
+		cg := BuildCallGraph(edges)
+		roots := cg.Roots("foo")
+		if len(roots) != 3 {
+			t.Fatalf("got %d roots, want 3 (foox, fooy, foo)", len(roots))
+		}
+		if roots[0] != "fooy" || roots[1] != "foox" {
+			t.Errorf("expected first two sorted by value (fooy=10, foox=5), got %v", roots)
+		}
+	})
 }
 
 func TestCallGraph_EdgesFrom(t *testing.T) {
@@ -240,6 +337,25 @@ func TestPrintDigest(t *testing.T) {
 		d, _ := DigestProfile(p)
 		PrintDigest(d, "", nil) // must not panic
 	})
+
+	t.Run("skips call graph section when digest has no edges", func(t *testing.T) {
+		d, _ := DigestProfile(minimalProfile("a", "b", 10))
+		d.Edges = nil
+		var buf bytes.Buffer
+		PrintDigest(d, "", &buf)
+		if strings.Contains(buf.String(), "Call graph") {
+			t.Error("output should not contain call graph when Edges is empty")
+		}
+	})
+
+	t.Run("writes no function matching when focus matches nothing", func(t *testing.T) {
+		d, _ := DigestProfile(minimalProfile("caller", "callee", 10))
+		var buf bytes.Buffer
+		PrintDigest(d, "nonexistentFunc", &buf)
+		if !strings.Contains(buf.String(), "No function matching") {
+			t.Error("output should contain no-match message when focus matches no function")
+		}
+	})
 }
 
 func TestPrintCallTree(t *testing.T) {
@@ -263,6 +379,19 @@ func TestPrintCallTree(t *testing.T) {
 		}
 		if !strings.Contains(out, "child") {
 			t.Error("output should contain callee name")
+		}
+	})
+
+	t.Run("prints cycle when graph has caller-callee cycle", func(t *testing.T) {
+		edges := []CallEdge{
+			{Caller: "A", Callee: "B", Value: 10},
+			{Caller: "B", Callee: "A", Value: 10},
+		}
+		cg := BuildCallGraph(edges)
+		var buf bytes.Buffer
+		PrintCallTree(cg, []string{"A"}, 100, false, &buf)
+		if !strings.Contains(buf.String(), "(cycle)") {
+			t.Error("output should contain (cycle) when call graph has a cycle")
 		}
 	})
 }

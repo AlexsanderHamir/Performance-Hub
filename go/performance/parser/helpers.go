@@ -94,6 +94,10 @@ func (cg *CallGraph) Roots(focus string) []string {
 	if focus != "" && len(roots) == 0 {
 		return nil
 	}
+	return cg.sortedRootsByValue(roots)
+}
+
+func (cg *CallGraph) sortedRootsByValue(roots []string) []string {
 	sort.Slice(roots, func(i, j int) bool {
 		return cg.callerTotal[roots[i]] > cg.callerTotal[roots[j]]
 	})

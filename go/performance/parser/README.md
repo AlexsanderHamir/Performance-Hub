@@ -51,3 +51,15 @@ parser.PrintDigest(digest, "", myWriter)       // or inject your own io.Writer
 ```
 
 All analytical data comes from the official `profile` types (e.g. `Profile.Function`, `Profile.Sample`, `Location`, `ValueType`).
+
+## 4. Test coverage
+
+From the repo’s `go/` directory:
+
+```bash
+cd go
+go test ./performance/parser/ -coverprofile=cover.out -covermode=atomic
+go tool cover -func cover.out
+```
+
+Use a **space** before the profile path (`-func cover.out`), not `=`, so PowerShell doesn’t pass it as one argument. For an HTML report: `go tool cover -html cover.out`.

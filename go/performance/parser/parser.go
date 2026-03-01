@@ -17,7 +17,12 @@ func ParseProfile(path string) (*profile.Profile, error) {
 		return nil, err
 	}
 	defer f.Close()
-	return profile.Parse(f)
+	return ParseProfileFromReader(f)
+}
+
+// ParseProfileFromReader parses a pprof profile from r. Used by ParseProfile and by tests with in-memory data.
+func ParseProfileFromReader(r io.Reader) (*profile.Profile, error) {
+	return profile.Parse(r)
 }
 
 // DigestProfile parses a pprof Profile into a Digest. Composes small pure helpers

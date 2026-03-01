@@ -23,10 +23,42 @@ describe('getUserById', () => {
 })
 ```
 
-## Coverage
-- Cover the happy path, edge cases, and failure modes — in that order.
-- If a bug is fixed, a test for that exact case is required.
-- No untested exports. If it's exported, it's tested.
+## Coverage — Target 100%
+Run the appropriate coverage tool for the language and iterate until all lines, branches, and functions are covered:
+
+| Language | Tool | Command |
+|---|---|---|
+| TypeScript / JavaScript | Vitest or Jest | `vitest run --coverage` / `jest --coverage` |
+| Python | pytest-cov | `pytest --cov=. --cov-report=term-missing` |
+| Go | built-in | `go test ./... -coverprofile=coverage.out && go tool cover -func=coverage.out` |
+| Rust | cargo-tarpaulin | `cargo tarpaulin --out term` |
+| Swift | Xcode | `xcodebuild test -enableCodeCoverage YES` |
+| Ruby | SimpleCov | add to test helper, run suite |
+| Java / Kotlin | JaCoCo | `./gradlew test jacocoTestReport` |
+
+### Coverage Loop — Do Not Stop Until 100%
+1. Run the coverage command.
+2. Read the report — identify every uncovered line, branch, and function.
+3. Write the missing tests.
+4. Re-run coverage.
+5. Repeat until the report shows 100% lines, branches, and functions.
+
+Uncovered code is unfinished work. Do not move on.
+
+### What 100% Means
+- Every line executed by at least one test.
+- Every branch (`if/else`, `switch`, ternary, null check) tested for each outcome.
+- Every exported function has at least one dedicated test.
+- 100% coverage does not mean 100% correct — it means no code is invisible to tests.
+
+### Acceptable Exclusions (annotate explicitly)
+Only exclude code that cannot meaningfully be tested:
+```ts
+/* istanbul ignore next */  // JS/TS
+# pragma: no cover          // Python
+//nolint:unused             // Go
+```
+Exclusions must be rare, intentional, and reviewed — not a shortcut.
 
 ## Speed & Isolation
 - Unit tests must not touch the network, filesystem, or database — mock or stub them.
