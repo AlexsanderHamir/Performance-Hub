@@ -1,0 +1,144 @@
+---
+name: handling-tasks
+description: How to find, execute, and close tasks from the tasks directory
+---
+
+# Task Handling
+
+## Where Tasks Live
+All tasks are defined in the `/tasks` directory of the repository.
+```
+tasks/
+  pending/      ← tasks ready to be worked on
+  in-progress/  ← task you are currently executing
+  done/         ← completed tasks with outcome summary
+  blocked/      ← tasks you cannot complete without more context
+```
+
+## Task File Format
+Each task is a markdown file named with the date and time it was created:
+`MM-DD-YY_HH-MM_short-description.md`
+```
+tasks/pending/
+  03-01-25_09-00_refactor-auth-package.md
+  03-01-25_14-30_add-tests-payment-service.md
+```
+
+Every task file must include a created timestamp in the header:
+```markdown
+# Task: <name>
+Created: 03/01/25 09:00 PST
+
+## Instruction
+What needs to be done in plain language.
+
+## Context
+Any additional background, links, or constraints.
+
+## Acceptance Criteria
+- [ ] Specific, verifiable conditions that define done.
+- [ ] Each one must be checked off before the task is closed.
+
+## Agent Notes
+<!-- Agent appends entries here — oldest at top, newest at bottom. Never delete. -->
+```
+
+## Agent Notes — Append Only
+Every entry in `Agent Notes` must:
+- Start with a timestamp: `### MM/DD/YY HH:MM PST`
+- Describe what was done, decided, asked, or found at that moment.
+- Never overwrite or delete a previous entry — always append below the last one.
+```markdown
+## Agent Notes
+
+### 03/01/25 09:05 PST
+STATUS: started
+Traced the auth package. JWT validation currently lives in the service layer.
+Confirming data shape of the token payload before proceeding.
+
+### 03/01/25 09:20 PST
+STATUS: blocked
+QUESTION: Should JWT validation move to middleware or stay in the auth service?
+CONTEXT: Both are viable. Moving to middleware makes it reusable across handlers
+but requires changes to 4 existing handler tests. Staying in the service layer
+is a smaller change. Cannot proceed without direction.
+
+### 03/01/25 10:05 PST
+STATUS: resumed
+Direction received: move to middleware. Proceeding with implementation.
+
+### 03/01/25 10:45 PST
+STATUS: completed
+SUMMARY: JWT validation extracted to middleware, 4 handler tests updated,
+coverage at 100%, 3 atomic commits.
+PR: branch agent/auth-middleware-03-01-25
+COMMITS:
+  - feat(auth): extract JWT validation to middleware
+  - test(auth): update handler tests for middleware validation
+  - docs(auth): update README with middleware usage
+```
+
+## Your Workflow — Follow In Order
+
+### 1. Pick a Task
+- Read all files in `tasks/pending/`.
+- Pick the oldest one by filename date.
+- Move it to `tasks/in-progress/` before touching any code.
+- Append the first note immediately after moving it:
+```markdown
+### MM/DD/YY HH:MM PST
+STATUS: started
+<brief description of what you read and your initial understanding>
+```
+
+- Only work one task at a time — never pick up a second task while one is in progress.
+
+### 2. Understand It
+- Read the instruction and context fully.
+- Trace the relevant code — do not assume what it does.
+- Confirm the shape of any data involved before writing logic. (`validate-input-and-output`)
+- If anything is ambiguous, append a note with your assumption before proceeding.
+
+### 3. Execute It
+- Follow the full agent workflow. (`agent-workflow`)
+- All rules apply — composability, testing, error handling, logging, commits, docs.
+- Stay strictly within the scope of the task — do not touch adjacent code.
+- Append a note for every significant decision or discovery made during execution.
+
+### 4. Signal When Blocked
+If you cannot proceed without more context, do not guess. Append a note:
+```markdown
+### MM/DD/YY HH:MM PST
+STATUS: blocked
+QUESTION: <one specific question that must be answered to continue>
+CONTEXT: <what you have done so far and why you are stuck>
+```
+
+Move the file to `tasks/blocked/` and stop. Do not proceed.
+
+### 5. Close the Task
+When all acceptance criteria are met:
+- Check off every item in the acceptance criteria.
+- Append the final note:
+```markdown
+### MM/DD/YY HH:MM PST
+STATUS: completed
+SUMMARY: <what was done, what changed, what to review>
+PR: <branch name or PR link>
+COMMITS:
+  - <commit message 1>
+  - <commit message 2>
+```
+
+- Move the file to `tasks/done/`.
+- Final commit message: `chore(tasks): close <task-name>`
+
+## Rules
+- Task filenames always include date and time: `MM-DD-YY_HH-MM_description.md`
+- Every task has a `Created:` timestamp in the header.
+- Every Agent Notes entry starts with `### MM/DD/YY HH:MM PST`.
+- Never delete or overwrite any previous Agent Notes entry — append only.
+- Never start a task without moving it to `in-progress/` and appending a started note.
+- Never mark a task done without every acceptance criterion checked off.
+- Never guess when blocked — append the question and move to `blocked/`.
+- Never work on more than one task at a time.
