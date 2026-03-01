@@ -13,7 +13,8 @@ Every task must be understood, decomposed, implemented cleanly, and confirmed to
 ## Your Ruleset
 The `(rule-name)` references throughout this workflow point to dedicated rules.
 Load and apply them at the relevant step — they contain the full detail for that concern.
-```
+
+```bash
 agent-workflow.mdc              ← you are here — follow this first
 composability.mdc               ← how to structure code
 unit-testing.mdc                ← how to test and hit 100% coverage
@@ -23,10 +24,24 @@ break-down-implementation.mdc   ← how to plan and commit
 validate-input-and-output.mdc   ← how to confirm data at runtime
 error-handling.mdc              ← how to handle, wrap, and propagate errors
 logging.mdc                     ← how to log with structure and context
-golang.mdc                      ← language-specific standards
 ```
 
 Do not summarize or skip rules. Each one has a stopping condition — meet it before moving on.
+
+## Scope
+Do exactly what the task asks. Do not refactor adjacent code, add unrequested features,
+or improve things outside the blast radius of the task.
+If you spot something worth fixing nearby — note it, do not touch it.
+
+## When Uncertain
+If you are blocked or uncertain at any point:
+- State what you know, what you don't, and what you assumed.
+- Do not guess. Do not proceed on a broken assumption.
+- Ask one specific question, then wait.
+
+## Simple Task Fast-Path
+If the change touches ≤ 2 functions and has obvious test cases — skip step 2 and go directly to step 3.
+Simple does not mean skip testing, error handling, or logging.
 
 ## The Workflow — Follow In Order
 
@@ -41,6 +56,7 @@ Do not summarize or skip rules. Each one has a stopping condition — meet it be
 - Identify which files will change and why.
 - Identify the test cases you will need before writing the implementation.
 - State the plan as a short ordered list. Do not skip this step.
+- If mid-plan you become uncertain — stop, apply the uncertainty protocol above, then continue.
 
 ### 3. Implement
 - Write code in small, composable units. (`composability`)
@@ -49,6 +65,7 @@ Do not summarize or skip rules. Each one has a stopping condition — meet it be
 - No comments that restate what the code does. (`how-to-use-comments`)
 - Follow language-specific standards throughout. (`golang`)
 - Commit each logical unit before moving to the next. (`break-down-implementation`)
+- Stay within scope — do not touch code outside the task boundary.
 
 ### 4. Test
 - Write unit tests alongside each unit of implementation. (`unit-testing`)
@@ -68,20 +85,22 @@ Do not summarize or skip rules. Each one has a stopping condition — meet it be
 - No debug code, commented-out code, or TODOs without a ticket.
 - No swallowed errors, no bare returns, no panics in business logic. (`error-handling`)
 - No `fmt.Println`, no unstructured logs, no sensitive data logged. (`logging`)
+- Nothing changed outside the task scope.
 
 ## Rules That Always Apply
 - Never assume data shape — confirm it at runtime. (`validate-input-and-output`)
 - Never swallow, ignore, or panic on an error — handle or propagate it. (`error-handling`)
 - Never log at the origin — log at the handling boundary with full context. (`logging`)
-- Never leave a task half-done. If you are blocked, say so explicitly.
+- Never leave a task half-done. If you are blocked, apply the uncertainty protocol.
 - Never make a large change in one commit. (`break-down-implementation`)
 - Never skip tests because the logic seems simple. (`unit-testing`)
+- Never touch code outside the task scope — note it, move on.
 
 ## Done Means
-- [ ] Implementation is complete and composable.
+- [ ] Implementation is complete, composable, and within scope.
 - [ ] Every error is handled, wrapped with context, and tested.
 - [ ] Logs are structured, contextual, and at the correct layer.
 - [ ] Tests pass with 100% coverage including error paths.
 - [ ] Documentation is written and accurate.
 - [ ] Commits are atomic with clean messages.
-- [ ] Diff has been reviewed — no noise, no leftovers.
+- [ ] Diff has been reviewed — no noise, no leftovers, nothing out of scope.
