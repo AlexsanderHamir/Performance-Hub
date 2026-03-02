@@ -30,6 +30,9 @@ I want this project to be easy and obvious to maintain, I want to get rid of:
 ### 03/01/26 18:08 PST
 `chore(tasks): close 03-01-2026_5-51PM-code-quality`
 
+### 03/01/26 18:12 PST
+`chore(tasks): add PR URL to 03-01-2026_5-51PM-code-quality`
+
 ## Agent Notes
 <!-- Agent appends entries here — oldest at top, newest at bottom. Never delete. -->
 
@@ -41,4 +44,4 @@ Read task: analyze parser for hard-to-understand logic, redundancy, confusing na
 ### 03/01/26 18:07 PST
 STATUS: completed
 SUMMARY: Refactored parser for clarity: renamed locValue→sampleValueByLocation, edgeValue→valueByEdgeKey, funcValue→valueByFunctionID, showValueSec→showValueInSeconds; replaced manual newline split in splitEdgeKey with strings.Cut; updated README. Added TestParseAndDigestIntegration covering ParseProfile→DigestProfile→PrintDigest with file I/O. All tests pass.
-PR: branch task/03-01-2026_5-51PM-code-quality
+PR: https://github.com/AlexsanderHamir/Performance-Hub/pull/1
