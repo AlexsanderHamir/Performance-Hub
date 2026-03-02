@@ -99,7 +99,7 @@ Grouped by concern.
 | Symbol | Signature | Behavior |
 |--------|-----------|----------|
 | `PrintDigest` | `(d *Digest, focus string, w io.Writer)` | Writes digest header, top functions, and call tree to `w`. Pass `nil` for `w` to use `os.Stdout`. Non-empty `focus` limits the call graph to functions whose name contains `focus`. |
-| `PrintCallTree` | `(cg *CallGraph, roots []string, totalSamples int64, showValueSec bool, w io.Writer)` | Writes a tree of roots and their callees to `w`. If `roots` is nil or empty, writes nothing (caller can print a “no match” message). |
+| `PrintCallTree` | `(cg *CallGraph, roots []string, totalSamples int64, showValueInSeconds bool, w io.Writer)` | Writes a tree of roots and their callees to `w`. If `roots` is nil or empty, writes nothing (caller can print a “no match” message). |
 
 ## Errors
 
