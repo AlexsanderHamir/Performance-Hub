@@ -1,8 +1,6 @@
 ---
-name: handling-tasks
-description: How to find, execute, and close tasks from the tasks directory
+alwaysApply: false
 ---
-
 # Task Handling
 
 ## Where Tasks Live
