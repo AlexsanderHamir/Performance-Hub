@@ -121,18 +121,18 @@ func treeBranch(last bool, prefix string) (branch, nextPrefix string) {
 	return "├─ ", prefix + "│   "
 }
 
-func PrintCallTree(cg *CallGraph, roots []string, totalSamples int64, showValueSec bool, w io.Writer) {
+func PrintCallTree(cg *CallGraph, roots []string, totalSamples int64, showValueInSeconds bool, w io.Writer) {
 	if len(roots) == 0 {
 		return
 	}
 	visited := make(map[string]bool)
 	for _, root := range roots {
 		fmt.Fprintf(w, "  %s\n", root)
-		printCallNode(cg, totalSamples, showValueSec, root, "", true, visited, w)
+		printCallNode(cg, totalSamples, showValueInSeconds, root, "", true, visited, w)
 	}
 }
 
-func printCallNode(cg *CallGraph, totalSamples int64, showValueSec bool, name string, prefix string, isLast bool, visited map[string]bool, w io.Writer) {
+func printCallNode(cg *CallGraph, totalSamples int64, showValueInSeconds bool, name string, prefix string, isLast bool, visited map[string]bool, w io.Writer) {
 	edges := cg.EdgesFrom(name)
 	if len(edges) == 0 {
 		return
@@ -141,13 +141,13 @@ func printCallNode(cg *CallGraph, totalSamples int64, showValueSec bool, name st
 		last := i == len(edges)-1
 		branch, nextPrefix := treeBranch(last, prefix)
 		pct := 100 * float64(e.Value) / float64(totalSamples)
-		fmt.Fprintf(w, "%s%s%.2f%%  %s  (%s)\n", prefix, branch, pct, e.Callee, FormatValue(e.Value, showValueSec))
+		fmt.Fprintf(w, "%s%s%.2f%%  %s  (%s)\n", prefix, branch, pct, e.Callee, FormatValue(e.Value, showValueInSeconds))
 		if visited[e.Callee] {
 			fmt.Fprintf(w, "%s    (cycle)\n", nextPrefix)
 			continue
 		}
 		visited[e.Callee] = true
-		printCallNode(cg, totalSamples, showValueSec, e.Callee, nextPrefix, last, visited, w)
+		printCallNode(cg, totalSamples, showValueInSeconds, e.Callee, nextPrefix, last, visited, w)
 		visited[e.Callee] = false
 	}
 }

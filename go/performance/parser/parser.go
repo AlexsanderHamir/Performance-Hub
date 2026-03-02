@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/google/pprof/profile"
 )
@@ -32,11 +33,11 @@ func DigestProfile(p *profile.Profile) (*Digest, error) {
 	}
 	d := &Digest{Profile: p}
 	fillDigestMetadata(d, p)
-	locValue, total := aggregateSampleLocations(p)
+	sampleValueByLocation, total := aggregateSampleLocations(p)
 	d.TotalSamples = total
 	d.Edges = buildCallEdgesFromProfile(p)
 	sort.Slice(d.Edges, func(i, j int) bool { return d.Edges[i].Value > d.Edges[j].Value })
-	d.TopFunctions = aggregateTopFunctions(p, locValue)
+	d.TopFunctions = aggregateTopFunctions(p, sampleValueByLocation)
 	sort.Slice(d.TopFunctions, func(i, j int) bool { return d.TopFunctions[i].Value > d.TopFunctions[j].Value })
 	return d, nil
 }
@@ -61,20 +62,20 @@ func sampleTotalValue(sample *profile.Sample) int64 {
 }
 
 func aggregateSampleLocations(p *profile.Profile) (map[*profile.Location]int64, int64) {
-	locValue := make(map[*profile.Location]int64)
+	sampleValueByLocation := make(map[*profile.Location]int64)
 	var total int64
 	for _, sample := range p.Sample {
 		v := sampleTotalValue(sample)
 		for _, loc := range sample.Location {
-			locValue[loc] += v
+			sampleValueByLocation[loc] += v
 		}
 		total += v
 	}
-	return locValue, total
+	return sampleValueByLocation, total
 }
 
 func buildCallEdgesFromProfile(p *profile.Profile) []CallEdge {
-	edgeValue := make(map[string]int64)
+	valueByEdgeKey := make(map[string]int64)
 	for _, sample := range p.Sample {
 		v := sampleTotalValue(sample)
 		locs := sample.Location
@@ -82,12 +83,12 @@ func buildCallEdgesFromProfile(p *profile.Profile) []CallEdge {
 			callee := FunctionName(locs[i])
 			caller := FunctionName(locs[i+1])
 			if caller != "" && callee != "" {
-				edgeValue[caller+"\n"+callee] += v
+				valueByEdgeKey[caller+"\n"+callee] += v
 			}
 		}
 	}
 	var edges []CallEdge
-	for key, val := range edgeValue {
+	for key, val := range valueByEdgeKey {
 		caller, callee := splitEdgeKey(key)
 		edges = append(edges, CallEdge{Caller: caller, Callee: callee, Value: val})
 	}
@@ -95,26 +96,25 @@ func buildCallEdgesFromProfile(p *profile.Profile) []CallEdge {
 }
 
 func splitEdgeKey(key string) (caller, callee string) {
-	for i := 0; i < len(key); i++ {
-		if key[i] == '\n' {
-			return key[:i], key[i+1:]
-		}
+	caller, callee, ok := strings.Cut(key, "\n")
+	if !ok {
+		return "", ""
 	}
-	return "", ""
+	return caller, callee
 }
 
-func aggregateTopFunctions(p *profile.Profile, locValue map[*profile.Location]int64) []FuncStat {
-	funcValue := make(map[uint64]int64)
-	for loc, v := range locValue {
+func aggregateTopFunctions(p *profile.Profile, sampleValueByLocation map[*profile.Location]int64) []FuncStat {
+	valueByFunctionID := make(map[uint64]int64)
+	for loc, v := range sampleValueByLocation {
 		for _, line := range loc.Line {
 			if line.Function != nil {
-				funcValue[line.Function.ID] += v
+				valueByFunctionID[line.Function.ID] += v
 			}
 		}
 	}
 	var out []FuncStat
 	for _, fn := range p.Function {
-		v := funcValue[fn.ID]
+		v := valueByFunctionID[fn.ID]
 		if v == 0 {
 			continue
 		}
@@ -131,10 +131,10 @@ func PrintDigest(d *Digest, focus string, w io.Writer) {
 		w = os.Stdout
 	}
 	printDigestHeader(d, w)
-	showValueSec := IsTimeProfile(d)
-	printTopFunctions(d, defaultTopFunctionsLimit, showValueSec, w)
+	showValueInSeconds := IsTimeProfile(d)
+	printTopFunctions(d, defaultTopFunctionsLimit, showValueInSeconds, w)
 	if len(d.Edges) > 0 {
-		printCallGraphSection(d, focus, showValueSec, w)
+		printCallGraphSection(d, focus, showValueInSeconds, w)
 	}
 }
 
@@ -147,11 +147,11 @@ func printDigestHeader(d *Digest, w io.Writer) {
 	fmt.Fprintln(w)
 }
 
-func printTopFunctions(d *Digest, limit int, showValueSec bool, w io.Writer) {
+func printTopFunctions(d *Digest, limit int, showValueInSeconds bool, w io.Writer) {
 	fmt.Fprintln(w, "Top functions by sample value:")
 	for i := 0; i < limit && i < len(d.TopFunctions); i++ {
 		f := d.TopFunctions[i]
-		fmt.Fprintf(w, "  %d\t%s\t(value=%s)\n", i+1, f.Name, FormatValue(f.Value, showValueSec))
+		fmt.Fprintf(w, "  %d\t%s\t(value=%s)\n", i+1, f.Name, FormatValue(f.Value, showValueInSeconds))
 		if f.Filename != "" {
 			fmt.Fprintf(w, "       \t%s\n", f.Filename)
 		}
@@ -159,7 +159,7 @@ func printTopFunctions(d *Digest, limit int, showValueSec bool, w io.Writer) {
 	fmt.Fprintln(w)
 }
 
-func printCallGraphSection(d *Digest, focus string, showValueSec bool, w io.Writer) {
+func printCallGraphSection(d *Digest, focus string, showValueInSeconds bool, w io.Writer) {
 	if focus != "" {
 		fmt.Fprintf(w, "Call graph (tree, focused on %q):\n", focus)
 	} else {
@@ -171,5 +171,5 @@ func printCallGraphSection(d *Digest, focus string, showValueSec bool, w io.Writ
 		fmt.Fprintf(w, "  No function matching %q\n", focus)
 		return
 	}
-	PrintCallTree(cg, roots, d.TotalSamples, showValueSec, w)
+	PrintCallTree(cg, roots, d.TotalSamples, showValueInSeconds, w)
 }

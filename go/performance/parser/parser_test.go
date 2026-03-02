@@ -491,3 +491,49 @@ func TestPrintCallTree(t *testing.T) {
 		}
 	})
 }
+
+func TestParseAndDigestIntegration(t *testing.T) {
+	p := minimalProfile("main", "handler", 200)
+	dir := t.TempDir()
+	path := filepath.Join(dir, "cpu.prof")
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Write(f); err != nil {
+		f.Close()
+		t.Fatal(err)
+	}
+	f.Close()
+
+	gotProfile, err := ParseProfile(path)
+	if err != nil {
+		t.Fatalf("ParseProfile: %v", err)
+	}
+	gotDigest, err := DigestProfile(gotProfile)
+	if err != nil {
+		t.Fatalf("DigestProfile: %v", err)
+	}
+
+	if gotDigest.TotalSamples != 200 {
+		t.Errorf("TotalSamples: got %d, want 200", gotDigest.TotalSamples)
+	}
+	if len(gotDigest.Edges) != 1 {
+		t.Fatalf("Edges: got %d, want 1", len(gotDigest.Edges))
+	}
+	if gotDigest.Edges[0].Caller != "main" || gotDigest.Edges[0].Callee != "handler" || gotDigest.Edges[0].Value != 200 {
+		t.Errorf("Edges[0]: got Caller=%q Callee=%q Value=%d", gotDigest.Edges[0].Caller, gotDigest.Edges[0].Callee, gotDigest.Edges[0].Value)
+	}
+	if len(gotDigest.TopFunctions) < 1 {
+		t.Error("TopFunctions: expected at least one")
+	}
+
+	var buf bytes.Buffer
+	PrintDigest(gotDigest, "", &buf)
+	if buf.Len() == 0 {
+		t.Error("PrintDigest produced no output")
+	}
+	if !strings.Contains(buf.String(), "main") || !strings.Contains(buf.String(), "handler") {
+		t.Error("PrintDigest output should contain main and handler")
+	}
+}
