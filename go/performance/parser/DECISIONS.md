@@ -2,11 +2,11 @@
 
 ## Use pprof’s profile types as-is
 
-**Context:** We need to parse pprof profile files and expose analytical data (sample types, top functions, call edges).
+**Context:** We need to parse pprof profile files and expose analytical data (sample types, call edges).
 
 **Options considered:** (1) Define our own structs and map from pprof after parse. (2) Use `github.com/google/pprof/profile` for parsing and types; add only a thin `Digest` and helpers on top.
 
-**Decision:** Use pprof’s `Profile`, `Location`, `Function`, `Sample`, `ValueType` everywhere. The parser returns `*profile.Profile` from `ParseProfile`/`ParseProfileFromReader`; `Digest` holds `Profile` and adds derived slices (`SampleTypes`, `TopFunctions`, `Edges`) and metadata. No redefinition of sample or location semantics.
+**Decision:** Use pprof’s `Profile`, `Location`, `Function`, `Sample`, `ValueType` everywhere. The parser returns `*profile.Profile` from `ParseProfile`/`ParseProfileFromReader`; `Digest` holds `Profile` and adds derived slices (`SampleTypes`, `Edges`) and metadata. No redefinition of sample or location semantics.
 
 **Tradeoffs:** Dependency on pprof and its versioning. In return, we stay aligned with the format and avoid drift or duplicate validation logic.
 
@@ -14,7 +14,7 @@
 
 ## Digest as a separate step
 
-**Context:** Callers need aggregated views (top functions, edges, call tree) from a profile.
+**Context:** Callers need aggregated views (edges, call tree) from a profile.
 
 **Options considered:** (1) Single function that reads path and returns a digest. (2) Parse → `Profile`, then `DigestProfile(Profile)` → `Digest`.
 

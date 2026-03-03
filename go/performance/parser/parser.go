@@ -33,12 +33,10 @@ func DigestProfile(p *profile.Profile) (*Digest, error) {
 	}
 	d := &Digest{Profile: p}
 	fillDigestMetadata(d, p)
-	sampleValueByLocation, total := aggregateSampleLocations(p)
+	_, total := aggregateSampleLocations(p)
 	d.TotalSamples = total
 	d.Edges = buildCallEdgesFromProfile(p)
 	sort.Slice(d.Edges, func(i, j int) bool { return d.Edges[i].Value > d.Edges[j].Value })
-	d.TopFunctions = aggregateTopFunctions(p, sampleValueByLocation)
-	sort.Slice(d.TopFunctions, func(i, j int) bool { return d.TopFunctions[i].Value > d.TopFunctions[j].Value })
 	return d, nil
 }
 
@@ -103,28 +101,6 @@ func splitEdgeKey(key string) (caller, callee string) {
 	return caller, callee
 }
 
-func aggregateTopFunctions(p *profile.Profile, sampleValueByLocation map[*profile.Location]int64) []FuncStat {
-	valueByFunctionID := make(map[uint64]int64)
-	for loc, v := range sampleValueByLocation {
-		for _, line := range loc.Line {
-			if line.Function != nil {
-				valueByFunctionID[line.Function.ID] += v
-			}
-		}
-	}
-	var out []FuncStat
-	for _, fn := range p.Function {
-		v := valueByFunctionID[fn.ID]
-		if v == 0 {
-			continue
-		}
-		out = append(out, FuncStat{Name: fn.Name, SystemName: fn.SystemName, Filename: fn.Filename, Value: v})
-	}
-	return out
-}
-
-const defaultTopFunctionsLimit = 15
-
 // PrintDigest: pass nil for w to use os.Stdout; non-empty focus limits the call graph to functions whose name contains focus.
 func PrintDigest(d *Digest, focus string, w io.Writer) {
 	if w == nil {
@@ -132,7 +108,17 @@ func PrintDigest(d *Digest, focus string, w io.Writer) {
 	}
 	printDigestHeader(d, w)
 	showValueInSeconds := IsTimeProfile(d)
-	printTopFunctions(d, defaultTopFunctionsLimit, showValueInSeconds, w)
+	if len(d.Edges) > 0 {
+		printCallGraphSection(d, focus, showValueInSeconds, w)
+	}
+}
+
+// PrintCallGraph writes only the call graph (tree) section to w. Pass nil for w to use os.Stdout. focus limits the tree to functions whose name contains focus.
+func PrintCallGraph(d *Digest, focus string, w io.Writer) {
+	if w == nil {
+		w = os.Stdout
+	}
+	showValueInSeconds := IsTimeProfile(d)
 	if len(d.Edges) > 0 {
 		printCallGraphSection(d, focus, showValueInSeconds, w)
 	}
@@ -144,18 +130,6 @@ func printDigestHeader(d *Digest, w io.Writer) {
 	fmt.Fprintln(w, "Total samples:", d.TotalSamples)
 	fmt.Fprintf(w, "Duration: %ss\n", FormatDuration(d.DurationNanos))
 	fmt.Fprintf(w, "Period: %s %s\n", d.PeriodType, FormatDuration(d.Period))
-	fmt.Fprintln(w)
-}
-
-func printTopFunctions(d *Digest, limit int, showValueInSeconds bool, w io.Writer) {
-	fmt.Fprintln(w, "Top functions by sample value:")
-	for i := 0; i < limit && i < len(d.TopFunctions); i++ {
-		f := d.TopFunctions[i]
-		fmt.Fprintf(w, "  %d\t%s\t(value=%s)\n", i+1, f.Name, FormatValue(f.Value, showValueInSeconds))
-		if f.Filename != "" {
-			fmt.Fprintf(w, "       \t%s\n", f.Filename)
-		}
-	}
 	fmt.Fprintln(w)
 }
 

@@ -132,17 +132,6 @@ func TestDigestProfile(t *testing.T) {
 		}
 	})
 
-	t.Run("returns digest with top functions populated", func(t *testing.T) {
-		p := minimalProfile("caller", "callee", 100)
-		d, err := DigestProfile(p)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(d.TopFunctions) == 0 {
-			t.Error("expected at least one top function")
-		}
-	})
-
 	t.Run("returns error when profile fails CheckValid", func(t *testing.T) {
 		p := minimalProfile("caller", "callee", 100)
 		p.Sample[0].Value = []int64{1, 2}
@@ -196,32 +185,6 @@ func TestDigestProfile(t *testing.T) {
 		}
 	})
 
-	t.Run("excludes functions with zero sample value from top functions", func(t *testing.T) {
-		// Extra function in p.Function with no samples so aggregateTopFunctions' v==0 continue is covered.
-		fnA := &profile.Function{ID: 1, Name: "used", Filename: "a.go"}
-		fnB := &profile.Function{ID: 2, Name: "unusedInSamples", Filename: "b.go"}
-		locA := &profile.Location{ID: 1, Line: []profile.Line{{Function: fnA}}}
-		p := &profile.Profile{
-			SampleType:    []*profile.ValueType{{Type: "cpu", Unit: "nanoseconds"}},
-			PeriodType:    &profile.ValueType{Type: "cpu", Unit: "nanoseconds"},
-			Period:        10000000,
-			DurationNanos: 1e9,
-			TimeNanos:     0,
-			Function:      []*profile.Function{fnA, fnB},
-			Location:      []*profile.Location{locA},
-			Sample:        []*profile.Sample{{Location: []*profile.Location{locA}, Value: []int64{50}}},
-		}
-		d, err := DigestProfile(p)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(d.TopFunctions) != 1 {
-			t.Fatalf("expected 1 top function (unusedInSamples must be skipped), got %d", len(d.TopFunctions))
-		}
-		if d.TopFunctions[0].Name != "used" || d.TopFunctions[0].Value != 50 {
-			t.Errorf("top function: got Name=%q Value=%d, want Name=used Value=50", d.TopFunctions[0].Name, d.TopFunctions[0].Value)
-		}
-	})
 }
 
 func TestSplitEdgeKey(t *testing.T) {
@@ -398,16 +361,6 @@ func TestPrintDigest(t *testing.T) {
 		}
 	})
 
-	t.Run("writes top functions section", func(t *testing.T) {
-		p := minimalProfile("caller", "callee", 100)
-		d, _ := DigestProfile(p)
-		var buf bytes.Buffer
-		PrintDigest(d, "", &buf)
-		if !strings.Contains(buf.String(), "Top functions by sample value") {
-			t.Error("output should contain top functions section")
-		}
-	})
-
 	t.Run("uses stdout when writer is nil", func(t *testing.T) {
 		p := minimalProfile("caller", "callee", 100)
 		d, _ := DigestProfile(p)
@@ -440,6 +393,36 @@ func TestPrintDigest(t *testing.T) {
 		if !strings.Contains(buf.String(), "No function matching") {
 			t.Error("output should contain no-match message when focus matches no function")
 		}
+	})
+}
+
+func TestPrintCallGraph(t *testing.T) {
+	t.Run("writes only call graph section to writer", func(t *testing.T) {
+		d, _ := DigestProfile(minimalProfile("caller", "callee", 10))
+		var buf bytes.Buffer
+		PrintCallGraph(d, "caller", &buf)
+		out := buf.String()
+		if !strings.Contains(out, "Call graph (tree, focused on \"caller\")") {
+			t.Error("output should contain focused call graph header")
+		}
+		if strings.Contains(out, "Parsed profile") || strings.Contains(out, "Top functions") {
+			t.Error("output should not contain digest header or top functions")
+		}
+	})
+
+	t.Run("writes nothing when digest has no edges", func(t *testing.T) {
+		d, _ := DigestProfile(minimalProfile("a", "b", 10))
+		d.Edges = nil
+		var buf bytes.Buffer
+		PrintCallGraph(d, "a", &buf)
+		if buf.Len() != 0 {
+			t.Errorf("expected no output when Edges is empty, got %d bytes", buf.Len())
+		}
+	})
+
+	t.Run("uses stdout when writer is nil", func(t *testing.T) {
+		d, _ := DigestProfile(minimalProfile("caller", "callee", 10))
+		PrintCallGraph(d, "caller", nil) // must not panic
 	})
 }
 
@@ -523,9 +506,6 @@ func TestParseAndDigestIntegration(t *testing.T) {
 	}
 	if gotDigest.Edges[0].Caller != "main" || gotDigest.Edges[0].Callee != "handler" || gotDigest.Edges[0].Value != 200 {
 		t.Errorf("Edges[0]: got Caller=%q Callee=%q Value=%d", gotDigest.Edges[0].Caller, gotDigest.Edges[0].Callee, gotDigest.Edges[0].Value)
-	}
-	if len(gotDigest.TopFunctions) < 1 {
-		t.Error("TopFunctions: expected at least one")
 	}
 
 	var buf bytes.Buffer

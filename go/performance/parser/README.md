@@ -1,13 +1,14 @@
 # parser
 
-Parses pprof CPU (or other) profiles into a digest so you can inspect sample types, top functions, and the call graph without re-parsing raw profile format. Exists because pprof’s `profile` package gives raw structures; this package adds aggregated views (edges, top functions, tree printing) and a small CLI to view them.
+Parses pprof CPU (or other) profiles into a digest so you can inspect sample types and the call graph without re-parsing raw profile format. Exists because pprof’s `profile` package gives raw structures; this package adds aggregated views (edges, tree printing) and a small CLI to view the call graph.
 
 ## Usage
 
 **CLI** (from repo `go/` directory):
 
+The CLI has no default feature. You must pass `-focus` to request the only supported feature (call graph tree). Example:
+
 ```bash
-go run ./cmd/parser/ cpu.prof
 go run ./cmd/parser/ -focus "parser.work" cpu.prof
 ```
 
@@ -32,8 +33,9 @@ if err != nil {
 	// profile failed CheckValid (e.g. sample type mismatch)
 	return err
 }
-parser.PrintDigest(digest, "", nil)             // full call tree to stdout
-parser.PrintDigest(digest, "parser.work", nil) // call tree limited to names containing "parser.work"
+parser.PrintDigest(digest, "", nil)             // digest header + full call tree to stdout
+parser.PrintDigest(digest, "parser.work", nil)  // digest header + call tree limited to names containing "parser.work"
+parser.PrintCallGraph(digest, "parser.work", nil) // only call graph (tree) to stdout
 parser.PrintDigest(digest, "", myWriter)        // write to custom io.Writer
 ```
 
@@ -43,7 +45,7 @@ The parser package has no env or config. The CLI (`cmd/parser`) supports:
 
 | Name   | Type   | Default | Description |
 |--------|--------|---------|-------------|
-| `-focus` | string | `""` | Limit call graph to functions whose name contains this substring. Empty = full tree. |
+| `-focus` | string | (required) | Limit call graph to functions whose name contains this substring (e.g. `parser.work`). Must be set; CLI has no default feature. |
 | positional | string | (required) | Path to the pprof profile file (e.g. `cpu.prof`). |
 
 ## Dependencies
@@ -60,14 +62,13 @@ Grouped by concern.
 |--------|-----------|----------|
 | `ParseProfile` | `(path string) (*profile.Profile, error)` | Reads a profile file from disk and parses it. Fails if the file cannot be opened or content is not valid pprof. |
 | `ParseProfileFromReader` | `(r io.Reader) (*profile.Profile, error)` | Parses a profile from an `io.Reader`. Use for in-memory or streaming input. |
-| `DigestProfile` | `(p *profile.Profile) (*Digest, error)` | Turns a valid `Profile` into a `Digest` (sample types, total, edges, top functions). Returns error if `p.CheckValid()` fails. |
+| `DigestProfile` | `(p *profile.Profile) (*Digest, error)` | Turns a valid `Profile` into a `Digest` (sample types, total, edges). Returns error if `p.CheckValid()` fails. |
 
 ### Types (output of digest)
 
 | Symbol | Purpose |
 |--------|---------|
-| `Digest` | Aggregated view: `Profile`, `SampleTypes`, `TotalSamples`, `TopFunctions`, `Edges`, `DurationNanos`, `Period`, `PeriodType`. |
-| `FuncStat` | One function’s stats: `Name`, `SystemName`, `Filename`, `Value`. |
+| `Digest` | Aggregated view: `Profile`, `SampleTypes`, `TotalSamples`, `Edges`, `DurationNanos`, `Period`, `PeriodType`. |
 | `CallEdge` | One caller→callee edge: `Caller`, `Callee`, `Value`. |
 
 ### Inspecting profile and digest
@@ -98,7 +99,8 @@ Grouped by concern.
 
 | Symbol | Signature | Behavior |
 |--------|-----------|----------|
-| `PrintDigest` | `(d *Digest, focus string, w io.Writer)` | Writes digest header, top functions, and call tree to `w`. Pass `nil` for `w` to use `os.Stdout`. Non-empty `focus` limits the call graph to functions whose name contains `focus`. |
+| `PrintDigest` | `(d *Digest, focus string, w io.Writer)` | Writes digest header and call tree to `w`. Pass `nil` for `w` to use `os.Stdout`. Non-empty `focus` limits the call graph to functions whose name contains `focus`. |
+| `PrintCallGraph` | `(d *Digest, focus string, w io.Writer)` | Writes only the call graph (tree) section to `w`. Pass `nil` for `w` to use `os.Stdout`. Used by the CLI. |
 | `PrintCallTree` | `(cg *CallGraph, roots []string, totalSamples int64, showValueInSeconds bool, w io.Writer)` | Writes a tree of roots and their callees to `w`. If `roots` is nil or empty, writes nothing (caller can print a “no match” message). |
 
 ## Errors
