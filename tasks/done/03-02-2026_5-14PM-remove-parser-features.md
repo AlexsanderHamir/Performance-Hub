@@ -26,6 +26,9 @@ Any additional background, links, or constraints.
 ### 03/02/26 17:36 PST
 `feat(parser): CLI require -focus, add PrintCallGraph; update docs`
 
+### 03/02/26 17:42 PST
+`chore(tasks): close 03-02-2026_5-14PM-remove-parser-features`
+
 ## Agent Notes
 <!-- Agent appends entries here — oldest at top, newest at bottom. Never delete. -->
 
