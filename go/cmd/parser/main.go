@@ -1,5 +1,4 @@
-// Parser CLI: parses a pprof profile using the pprof profile package and
-// prints analytical data (function names, sample types, top functions, etc.).
+// Parser CLI: parses a pprof profile and prints the call graph (tree). Requires -focus; no default feature.
 package main
 
 import (
@@ -11,14 +10,19 @@ import (
 )
 
 func main() {
-	focus := flag.String("focus", "", "isolate call tree to functions whose name contains this (e.g. parser.work)")
+	focus := flag.String("focus", "", "isolate call tree to functions whose name contains this (e.g. parser.work); required")
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "usage: %s [options] <cpu.prof>\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "usage: %s -focus <substring> <cpu.prof>\n", os.Args[0])
 		flag.PrintDefaults()
 		fmt.Fprintln(os.Stderr, "\nGenerate a profile: cd go && go test -cpuprofile=cpu.prof -bench=. ./performance/parser/")
 	}
 	flag.Parse()
 	if flag.NArg() < 1 {
+		flag.Usage()
+		os.Exit(1)
+	}
+	if *focus == "" {
+		fmt.Fprintln(os.Stderr, "error: -focus is required (e.g. -focus \"parser.work\")")
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -36,5 +40,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	parser.PrintDigest(d, *focus, nil)
+	parser.PrintCallGraph(d, *focus, nil)
 }
