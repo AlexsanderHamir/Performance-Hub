@@ -51,11 +51,35 @@ Branch name mirrors the task filename exactly:
 ```
 task/MM-DD-YY_HH-MM_short-description
 ```
+
+**Always create the branch from latest main.** Before creating the new branch:
+1. Check out `main`.
+2. Pull the latest from `origin/main`.
+3. Create the new branch explicitly from the current (updated) `main`.
+
 ```bash
+git checkout main
+git pull origin main
 git checkout -b task/03-01-25_09-00_refactor-auth-package
 ```
 
 The branch name must be written into the task file header under `Branch:` immediately after creation.
+
+## Moving task files
+When moving task files between folders (e.g. pending → in-progress, in-progress → done/blocked), use the appropriate shell command for the environment. **On Windows**, use PowerShell’s `Move-Item`:
+
+```powershell
+# Example: start a task (pending → in-progress)
+Move-Item -Path "tasks\pending\03-01-25_09-00_refactor-auth-package.md" -Destination "tasks\in-progress\03-01-25_09-00_refactor-auth-package.md"
+
+# Example: close as done (in-progress → done)
+Move-Item -Path "tasks\in-progress\03-01-25_09-00_refactor-auth-package.md" -Destination "tasks\done\03-01-25_09-00_refactor-auth-package.md"
+
+# Example: mark blocked (in-progress → blocked)
+Move-Item -Path "tasks\in-progress\03-01-25_09-00_refactor-auth-package.md" -Destination "tasks\blocked\03-01-25_09-00_refactor-auth-package.md"
+```
+
+Use backslashes in paths when running on Windows. Substitute the actual task filename in each case.
 
 ## Commits Section — Append Only
 Every commit made during the task must be appended to the `Commits` section immediately after it is made. Never delete or reorder previous entries.
@@ -110,8 +134,10 @@ PR: https://github.com/you/repo/pull/42
 - Read all files in `tasks/pending/`.
 - Pick the oldest one by filename date.
 - Move it to `tasks/in-progress/` before touching any code.
-- Create the branch immediately:
+- **Pull latest main, then create the branch explicitly from main** (never branch from an outdated or other branch):
 ```bash
+git checkout main
+git pull origin main
 git checkout -b task/MM-DD-YY_HH-MM_short-description
 ```
 - Write the branch name into the task file header under `Branch:`.
@@ -217,6 +243,8 @@ git push origin task/MM-DD-YY_HH-MM_short-description
 - Task filenames always include date and time: `MM-DD-YY_HH-MM_description.md`
 - Every task has a `Created:` and `Branch:` in the header.
 - Every task gets its own branch — created before any code is written.
+- **Always pull from main before creating a task branch; create the branch explicitly from latest main** (checkout main → pull origin main → checkout -b task/…).
+- **On Windows, move task files between folders using PowerShell `Move-Item`** (e.g. `Move-Item -Path "tasks\pending\filename.md" -Destination "tasks\in-progress\filename.md"`).
 - Branch name mirrors the task filename: `task/MM-DD-YY_HH-MM_description`.
 - Every commit is appended to the `Commits` section immediately after it is made.
 - Every Agent Notes entry starts with `### MM/DD/YY HH:MM PST`.
